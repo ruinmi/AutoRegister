@@ -1,6 +1,9 @@
 ## 注意
 > **用管理员运行程序**
 
+> 修改src/main/resources/locationTemplate.properties为src/main/resources/location.properties
+> 并修改其中内容
+
 > 使用前，系统时间需设为周末，程序会对明天开始一周的表进行登记
 
 
