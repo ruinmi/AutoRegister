@@ -5,11 +5,17 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Properties;
 import java.util.Scanner;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * created by elio on 12/09/2022
@@ -18,6 +24,8 @@ public class StartApp {
     private static final Robot robot;
     private static final Properties prop;
     private static final int GLOBAL_DELAY = 50;
+    public static final SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+    public static final Calendar calendar;
 
     static {
         try {
@@ -29,39 +37,56 @@ public class StartApp {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        calendar = Calendar.getInstance();
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         Scanner sc = new Scanner(System.in);
         System.out.print("Enter any key to start[Except 'q' or 'quit']: ");
         String s;
-        while (!(s = sc.nextLine()).equals("q") && !s.equals("quit")) {
-            click(1);
-            click(2);
-            click(3);
-            nextInput("俞晓波");
-            nextInput("13818139567");
-            nextInput("项目实施");
-            nextInput("上飞院2号楼");
-            click(4);
-            nextInput("南京国睿");
-            nextInput(prop.getProperty("name"));
-            nextInput(prop.getProperty("tele"));
-            nextInput(prop.getProperty("id"));
-            nextInput("无");
-            longPressKey(KeyEvent.VK_PAGE_DOWN, 200);
+        if (!(s = sc.nextLine()).equals("q") && !s.equals("quit")) {
+            while (true) {
+                calendar.add(Calendar.DATE, 1);
+                if (calendar.get(Calendar.DAY_OF_WEEK) > Calendar.FRIDAY) {
+                    break;
+                }
+                changeTime();
+                Thread.sleep(1000);
+                openBrowser();
+                robot.delay(3000);
+                click(1);
+                click(2);
+                click(3);
+                nextInput("俞晓波");
+                nextInput("13818139567");
+                nextInput("项目实施");
+                nextInput("上飞院2号楼");
+                click(4);
+                nextInput("南京国睿");
+                nextInput(prop.getProperty("name"));
+                nextInput(prop.getProperty("tele"));
+                nextInput(prop.getProperty("id"));
+                nextInput("无");
+                longPressKey(KeyEvent.VK_PAGE_DOWN, 200);
 
-            fillImg(prop.getProperty("covid-img"));
-            fillImg(prop.getProperty("routine-img"));
-            longPressKey(KeyEvent.VK_PAGE_DOWN, 200);
+                fillImg(prop.getProperty("covid-img"));
+                fillImg(prop.getProperty("routine-img"));
+                longPressKey(KeyEvent.VK_PAGE_DOWN, 200);
 
-            move(5);
-            robot.delay(500);
-            click(5);
+                move(5);
+                robot.delay(500);
+                click(5);
 
-            click(6);
-            click(7);
-            System.out.print("Enter any key to start[Except 'q' or 'quit']: ");
+                click(6);
+                click(7);
+                // System.out.print("Enter any key to start[Except 'q' or 'quit']: ");
+                robot.delay(300);
+                click(8);
+                robot.delay(500);
+                click(9);
+                robot.delay(500);
+                click(10);
+            }
         }
     }
 
@@ -148,5 +173,84 @@ public class StartApp {
         }
 
         return null;
+    }
+
+    public static void openBrowser() {
+        String url = "https://qy.do1.com.cn/open/vp/module/form.html?agentCode=form&corp_id=wx75f8bc632d52198a#/open/add?id=formbd2303bfe7344c3ebaac7c22341c8b54";
+        try {
+            ProcessBuilder proc = new ProcessBuilder(
+                    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+                    url);
+            proc.start();
+        } catch (Exception e) {
+            System.out.println("Error executing program.");
+        }
+    }
+
+    public static void changeTime() {
+        String date = sdf.format(calendar.getTime());
+        String time = "08:50:30";
+        try {
+            Runtime run = Runtime.getRuntime();
+            String timeCommand = "cmd.exe /c time" + " " + time;
+            String dateCommand = "cmd.exe /c date" + " " + date;
+            Process p1 = run.exec(timeCommand);
+            readStreamInfo(p1.getInputStream(), p1.getErrorStream());
+            p1.waitFor();
+            p1.destroy();
+            Process p2 = run.exec(dateCommand);
+            readStreamInfo(p2.getInputStream(), p2.getErrorStream());
+            p2.waitFor();
+            p2.destroy();
+
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 读取RunTime.exec运行子进程的输入流 和 异常流
+     *
+     * @param inputStreams 输入流
+     */
+    public static void readStreamInfo(InputStream... inputStreams) {
+        ExecutorService executorService = Executors.newFixedThreadPool(inputStreams.length);
+        for (InputStream in : inputStreams) {
+            executorService.execute(new MyThread(in));
+        }
+        executorService.shutdown();
+    }
+
+    /**
+     * @author lirong
+     * @desc
+     * @date 2019/06/13 21:25
+     */
+    static class MyThread implements Runnable {
+        private InputStream in;
+
+        public MyThread(InputStream in) {
+            this.in = in;
+        }
+
+        @Override
+        public void run() {
+            try {
+                BufferedReader br = new BufferedReader(new InputStreamReader(in, "GBK"));
+                String line = null;
+                while ((line = br.readLine()) != null) {
+                    System.out.println(" inputStream: " + line);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    in.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 }
