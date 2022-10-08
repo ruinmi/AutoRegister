@@ -60,6 +60,7 @@ public class StartApp {
                     }
                 }
             }
+            Collections.sort(date);
         } catch (Exception e) {
             throw new RuntimeException("An error occurred while parsing date");
         }
