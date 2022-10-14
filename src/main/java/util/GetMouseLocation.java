@@ -10,7 +10,7 @@ public class GetMouseLocation {
         int i = 0;
         while (i++ < 50) {
             Point p = MouseInfo.getPointerInfo().getLocation();
-            System.out.println(p.getX() + "," + p.getY());
+            System.out.println((int)p.getX() + "," + (int)p.getY());
             try {
                 Thread.sleep(300);
             } catch (InterruptedException e) {

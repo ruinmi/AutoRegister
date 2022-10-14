@@ -11,9 +11,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Properties;
-import java.util.Scanner;
+import java.util.*;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -26,7 +25,8 @@ public class StartApp {
     private static final int GLOBAL_DELAY = 50;
     public static final SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
     public static final Calendar calendar;
-
+    // 60天上限
+    public static final ArrayList<Integer> date = new ArrayList<>();
     static {
         try {
             InputStream is = StartApp.class.getClassLoader().getResourceAsStream("location.properties");
@@ -37,19 +37,42 @@ public class StartApp {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        String propDate = prop.getProperty("date");
+        if (propDate != null && !propDate.equals("")) {
+            propDate = propDate.trim();
+        } else {
+            throw new RuntimeException("Can not get the value from 'date' in properties");
+        }
+        String[] partialDate = propDate.split(",");
+        try {
+            for (String partial : partialDate) {
+                if (partial.contains("-")) {
+                    String[] bits = partial.split("-");
+                    for (int i = Integer.parseInt(bits[0]); i <= Integer.parseInt(bits[1]); i++) {
+                        if (!date.contains(i)) {
+                            date.add(i);
+                        }
+                    }
+                } else {
+                    int val = Integer.parseInt(partial);
+                    if (!date.contains(val)) {
+                        date.add(val);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("An error occurred while parsing date");
+        }
         calendar = Calendar.getInstance();
     }
 
     public static void main(String[] args) throws InterruptedException {
         Scanner sc = new Scanner(System.in);
-        System.out.print("Enter any key to start[Except 'q' or 'quit']: ");
+        System.out.println("Are you sure that the date" + date + " is correct and START(y or n)?");
         String s;
-        if (!(s = sc.nextLine()).equals("q") && !s.equals("quit")) {
-            while (true) {
-                calendar.add(Calendar.DATE, 1);
-                if (calendar.get(Calendar.DAY_OF_WEEK) > Calendar.FRIDAY) {
-                    break;
-                }
+        if ((s = sc.nextLine()).equals("y")) {
+            for (int d : date){
+                calendar.set(Calendar.DATE, d);
                 changeTime();
                 Thread.sleep(1000);
                 openBrowser();
@@ -79,10 +102,12 @@ public class StartApp {
 
                 click(6);
                 click(7);
-                // System.out.print("Enter any key to start[Except 'q' or 'quit']: ");
                 robot.delay(300);
                 click(8);
                 robot.delay(500);
+                if (prop.getProperty("test").equals("true")) {
+                    continue;
+                }
                 click(9);
                 robot.delay(500);
                 click(10);
@@ -179,7 +204,7 @@ public class StartApp {
         String url = "https://qy.do1.com.cn/open/vp/module/form.html?agentCode=form&corp_id=wx75f8bc632d52198a#/open/add?id=formbd2303bfe7344c3ebaac7c22341c8b54";
         try {
             ProcessBuilder proc = new ProcessBuilder(
-                    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+                    prop.getProperty("browser-exec"),
                     url);
             proc.start();
         } catch (Exception e) {

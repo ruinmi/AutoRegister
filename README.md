@@ -4,9 +4,15 @@
 > 修改src/main/resources/locationTemplate.properties为src/main/resources/location.properties
 > 并修改其中内容
 
-> 使用前，系统时间需设为周末，程序会对明天开始一周的表进行登记
+> 使用前，系统时间需设为星期日，程序会对明天开始一周的表进行登记
 
+> 浏览器chrome；默认半屏
 
+## 文本
+covid-img --> 健康码
+routine-img --> 行程码
+date=1,3,5,9-25
+test=true --> 不关闭提交表格、不关闭浏览器
 
 ## 坐标
 #### 未page down
