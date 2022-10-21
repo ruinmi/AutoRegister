@@ -1,20 +1,19 @@
-## 注意
-> **用管理员运行程序**
+# 开始
+## 1. 执行GenStart.java 生成bat脚本，***用管理员运行bat脚本***
+## 2. 第一次使用选择3和4，修改个人信息和鼠标点击坐标
 
-> 修改src/main/resources/locationTemplate.properties为src/main/resources/location.properties
-> 并修改其中内容
-
-> 使用前，系统时间需设为星期日，程序会对明天开始一周的表进行登记
-
-> 浏览器chrome；默认半屏
-
-## 文本
+****
+****
+****
+****
+### 文本
 covid-img --> 健康码
 routine-img --> 行程码
 date=1,3,5,9-25
 test=true --> 不关闭提交表格、不关闭浏览器
+editProfile=true --> 不关闭提交表格、不关闭浏览器
 
-## 坐标
+### 坐标
 #### 未page down
     1：因工作关系是否必须进入上飞院（是
     2：来访人员是否有48小时（是

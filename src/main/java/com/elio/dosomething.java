@@ -1,9 +1,13 @@
+package com.elio;
+
 import java.awt.*;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.text.DateFormat;
+import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Properties;
@@ -22,14 +26,24 @@ public class dosomething {
         }
     }
     public static void main(String[] args) throws InterruptedException {
-        for (int i = 20; i >= 0; i--) {
-            Thread.sleep(2000);
-            scroll();
-            click(923, 727);
-            robot.delay(2800);
-            click(918, 665);
-            robot.delay(2800);
-            click(869,877);
+//        for (int i = 20; i >= 0; i--) {
+//            Thread.sleep(2000);
+//            scroll();
+//            click(923, 727);
+//            robot.delay(2800);
+//            click(918, 665);
+//            robot.delay(2800);
+//            click(869,877);
+//        }
+//        DateFormat instance = SimpleDateFormat.getInstance();
+//        NumberFormat numberFormat = instance.getNumberFormat();
+//        Calendar calendar = Calendar.getInstance();
+//        DateFormat sdf = SimpleDateFormat.getDateInstance(DateFormat.DATE_FIELD);
+//        DateFormat sd1f = new SimpleDateFormat("yyyy/MM/dd");
+        while (true) {
+            String s = StartApp.sc.nextLine();
+            StartApp.editConfig("covid-img", s);
+            System.out.println(StartApp.prop.getProperty("covid-img"));
         }
     }
 
