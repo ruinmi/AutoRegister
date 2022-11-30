@@ -25,7 +25,7 @@ public class GenStarter {
         int classes = path.lastIndexOf("classes");
 
         String command = "@echo off\n" +
-                "java -classpath " + path.substring(1, classes + 7) + " com.elio.StartApp\n" +
+                "java -jar " + path.substring(1, classes) + "AuoRegister-1.0-SNAPSHOT-jar-with-dependencies.jar\n" +
                 "pause";
         writer.write(command);
         writer.close();

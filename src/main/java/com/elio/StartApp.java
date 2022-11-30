@@ -1,5 +1,6 @@
 package com.elio;
 
+import javax.sql.DataSource;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
@@ -11,11 +12,17 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import com.mysql.cj.jdbc.*;
 
 /**
  * created by elio on 12/09/2022
@@ -30,9 +37,12 @@ public class StartApp {
     public static final Scanner sc = new Scanner(System.in);
     public static final HashMap<Integer, String> promptMap = new HashMap<>();
     public static final String CONFIG_NAME = "config.properties";
-    // 60天上限
-    public static final ArrayList<Integer> date = new ArrayList<>();
 
+    private static final Date RUN_TIME = new Date();
+    public static final ArrayList<Date> date = new ArrayList<>();
+    private static final String SQL_URL = "jdbc:mysql:///auto_register_log";
+    private static final String SQL_USER = "root";
+    private static final String SQL_PWD = "!Aa2632995";
     static {
         promptMap.put(1, "因工作关系是否必须进入上飞院（是");
         promptMap.put(2, "来访人员是否有48小时（是");
@@ -43,11 +53,14 @@ public class StartApp {
         promptMap.put(7, "来访开始时间（位置");
         promptMap.put(8, "来访开始时间（确认按钮");
         promptMap.put(9, "《立即提交》按钮");
-        promptMap.put(10, "《浏览器关闭按钮》");
+        promptMap.put(10, "《查看》");
+        promptMap.put(11, "《地址栏》");
+        promptMap.put(12, "《浏览器关闭按钮》");
         try {
             robot = new Robot();
             loadProp();
-        } catch (AWTException e) {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (AWTException | ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
         calendar = Calendar.getInstance();
@@ -56,11 +69,11 @@ public class StartApp {
     public static void main(String[] args) throws InterruptedException {
         String choice = "";
         do {
-            System.out.println("[1] 开始");
-            System.out.println("[2] 测试");
-            System.out.println("[3] 修改信息");
-            System.out.println("[4] 修改坐标");
-            System.out.println("[5] 离开");
+            System.out.println("[1] Start");
+            System.out.println("[2] Test");
+            System.out.println("[3] Modify Info");
+            System.out.println("[4] Modify Offset");
+            System.out.println("[5] Exit");
             do {
                 System.out.print("> ");
                 choice = sc.nextLine();
@@ -129,20 +142,23 @@ public class StartApp {
     private static void commence(boolean test, boolean editOffset) throws InterruptedException {
         String confirm = "";
         if (!editOffset) {
-            sayPrompt("输入要登记的日期（例如：8,9,10,22-26)");
-            while (!parseDateInput(sc.nextLine())) {
+            sayPrompt("输入要登记的日期（例如：2022/12/25-11/28)");
+            String inputDates = sc.nextLine().trim();
+            sayPrompt("skip weekend (y or n)");
+            while (!parseDateInput(inputDates, sc.nextLine().trim())) {
                 sayPrompt("请重新输入");
             }
-            System.out.println("即将登记的日期" + date);
+            System.out.println("即将登记的日期：\n");
+            StartApp.date.forEach(System.out::println);
         } else {
-            date.add(calendar.get(Calendar.DAY_OF_MONTH));
+            date.add(new Date());
         }
         sayPrompt("开始(y or n)？");
-        if (sc.nextLine().equals("y")) {
-            for (int d : date) {
+        if (!sc.nextLine().equals("n")) {
+            for (Date d : date) {
                 if (!editOffset) {
                     click(10, test, false);
-                    calendar.set(Calendar.DATE, d);
+                    calendar.setTime(d);
                     changeTime();
                     Thread.sleep(1000);
                 }
@@ -175,9 +191,15 @@ public class StartApp {
                 robot.delay(300);
                 click(8, test, editOffset);
                 robot.delay(500);
-                click(9, test, editOffset);
+                click(9, test, editOffset); // submit form
                 robot.delay(500);
-                click(10, test, editOffset);
+                click(10, test, editOffset); // click info
+                robot.delay(500);
+                click(11, test, editOffset); // click url address
+                pressCombinedKey(KeyEvent.VK_CONTROL, KeyEvent.VK_C);
+                saveRegisterUrlLog(getClipboardString());
+                robot.delay(500);
+                click(12, test, editOffset); // close browser
             }
         }
     }
@@ -236,6 +258,17 @@ public class StartApp {
         robot.keyRelease(key);
     }
 
+    public static void pressCombinedKey(int mainKey, int subKey) {
+        robot.delay(GLOBAL_DELAY);
+        robot.keyPress(mainKey);
+        robot.delay(GLOBAL_DELAY);
+        robot.keyPress(subKey);
+        robot.delay(GLOBAL_DELAY);
+        robot.keyRelease(subKey);
+        robot.delay(GLOBAL_DELAY);
+        robot.keyRelease(mainKey);
+    }
+
     /**
      * 把文本设置到剪贴板（复制）
      */
@@ -264,6 +297,7 @@ public class StartApp {
                 try {
                     // 获取剪贴板中的文本内容
                     String text = (String) trans.getTransferData(DataFlavor.stringFlavor);
+                    clipboard.setContents(new StringSelection(""), null);
                     return text;
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -354,43 +388,47 @@ public class StartApp {
         }
     }
 
-    private static boolean parseDateInput(String input) {
+    private static boolean parseDateInput(String input, String skip) {
         date.clear();
-        boolean result = false;
+        // 判断输入是否为空
         if (input != null && !input.equals("")) {
             input = input.trim();
         } else {
             return false;
         }
-        String[] partialDate = input.split(",");
+
+        String[] partialDate = input.split("-");
+        SimpleDateFormat longSdf = new SimpleDateFormat("yyyy/MM/dd");
+        Date lDate = new Date(), rDate;
+        final int DAY_MILLIS = 60 * 60 * 1000 * 24;
         try {
-            for (String partial : partialDate) {
-                if (partial.contains("-")) {
-                    String[] bits = partial.split("-");
-                    for (int i = Integer.parseInt(bits[0]); i <= Integer.parseInt(bits[1]); i++) {
-                        if (!StartApp.date.contains(i)) {
-                            if (i > 31 || i < 1) {
-                                return false;
-                            }
-                            StartApp.date.add(i);
-                        }
-                    }
-                } else {
-                    int val = Integer.parseInt(partial);
-                    if (!StartApp.date.contains(val)) {
-                        if (val > 31 || val < 1) {
-                            return false;
-                        }
-                        StartApp.date.add(val);
-                    }
-                }
+            if ('/' != (partialDate[0].charAt(4)))
+                partialDate[0] = calendar.get(Calendar.YEAR) + "/" + partialDate[0];
+            lDate = longSdf.parse(partialDate[0]);
+
+            if ('/' != (partialDate[1].charAt(4)))
+                partialDate[1] = calendar.get(Calendar.YEAR) + "/" + partialDate[1];
+            rDate = longSdf.parse(partialDate[1]);
+
+        } catch (ArrayIndexOutOfBoundsException e) {
+            if (!"n".equals(skip) && (lDate.toString().startsWith("Sat") || lDate.toString().startsWith("Sun"))) {
+                return false;
             }
-            Collections.sort(StartApp.date);
-            result = true;
+            StartApp.date.add(lDate);
+            return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            return false;
         }
-        return result;
+        if (!lDate.before(rDate)) {
+            return false;
+        }
+        while (lDate.before(rDate) || lDate.equals(rDate)) {
+            if (!(!"n".equals(skip) && (lDate.toString().startsWith("Sat") || lDate.toString().startsWith("Sun")))) {
+                StartApp.date.add(new Date(lDate.getTime()));
+            }
+            lDate.setTime(lDate.getTime() + DAY_MILLIS);
+        }
+        return true;
     }
 
     private static void testUnit(int i, boolean test, boolean editOffset) {
@@ -402,7 +440,10 @@ public class StartApp {
         if (editOffset) {
             System.out.println("点击：" + output);
             sayPrompt("移动鼠标，输入p确认坐标");
-            while (!sc.nextLine().equals("p")) {
+            String instruction = sc.nextLine();
+            if (instruction == null || instruction.trim().equals(""))
+                return;
+            while (!instruction.equals("p")) {
                 sayPrompt("移动鼠标，输入p确认坐标");
             }
             Point p = MouseInfo.getPointerInfo().getLocation();
@@ -440,5 +481,30 @@ public class StartApp {
     public static void sayPrompt(String prompt) {
         System.out.println("---" + prompt + "   ");
         System.out.print("> ");
+    }
+
+    public static void saveRegisterUrlLog(String url) {
+        Connection conn = null;
+        try {
+            conn = DriverManager.getConnection(SQL_URL, SQL_USER, SQL_PWD);;
+            final String sql = "INSERT INTO url_log(url, register_time, create_time) VALUES(?, ?, ?)";
+            conn.setAutoCommit(false);
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, url);
+            ps.setDate(2, new java.sql.Date(calendar.getTime().getTime()));
+            ps.setDate(3, new java.sql.Date(RUN_TIME.getTime()));
+            ps.execute();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 }
